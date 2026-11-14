@@ -9,6 +9,7 @@ on:
       - "launcher/src/**"
       - "sdk/template/src/icon.png"
       - ".github/workflows/dside1.yml"
+      - "tools/setup.py"
   workflow_dispatch:
 
 jobs:
@@ -27,9 +28,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y make
           python3 tools/setup.py
+          test -x "$HOME/.numplay/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin/arm-none-eabi-gcc"
+          test -x "$HOME/.numplay/node_modules/.bin/nwlink"
       - name: Build D-Side 1
+        shell: bash
         run: |
-          echo "$HOME/.numplay/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin" >> "$GITHUB_PATH"
+          source "$HOME/.numplay/env.sh"
+          echo "Compiler: $(command -v arm-none-eabi-gcc)"
+          echo "NWLink: $(command -v nwlink)"
+          arm-none-eabi-gcc --version
           make -C games/dside1
           make -C games/dside1 check
       - name: Upload NWA
