@@ -72,7 +72,7 @@ static void step(uint64_t keys,uint64_t pressed) {
    px+=vx;
    if(px<0)px=0;
    if(px>SCREEN_W-PW)px=SCREEN_W-PW;
-   if(pressed&KEY(eadk_key_ok) && grounded) {vy=-7;grounded=0;}
+   if(pressed&KEY(eadk_key_ok) && grounded) {vy=-9;grounded=0;}
    if((pressed&KEY(eadk_key_back)) && !dash_used) {
      int ax=(keys&KEY(eadk_key_right)?1:0)-(keys&KEY(eadk_key_left)?1:0);
      int ay=(keys&KEY(eadk_key_down)?1:0)-(keys&KEY(eadk_key_up)?1:0);
