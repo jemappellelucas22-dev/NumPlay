@@ -1,0 +1,40 @@
+name: Build D-Side 1
+
+on:
+  push:
+    branches: [d-sides-prototype]
+    paths:
+      - "games/dside1/**"
+      - "games/common/**"
+      - "launcher/src/**"
+      - "sdk/template/src/icon.png"
+      - ".github/workflows/dside1.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make
+          python3 tools/setup.py
+      - name: Build D-Side 1
+        run: |
+          echo "$HOME/.numplay/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin" >> "$GITHUB_PATH"
+          make -C games/dside1
+          make -C games/dside1 check
+      - name: Upload NWA
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSide1-NWA
+          path: games/dside1/output/DSide1.nwa
+          if-no-files-found: error
