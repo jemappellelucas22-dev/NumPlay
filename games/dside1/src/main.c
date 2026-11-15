@@ -4,9 +4,9 @@
 #include <eadk.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include "../../games/common/epsilon_app.h"
-#include "../../launcher/src/gfx.h"
-#include "../../games/common/np_text.h"
+#include "../../common/epsilon_app.h"
+#include "../../../launcher/src/gfx.h"
+#include "../../common/np_text.h"
 
 #ifndef NP_MODULE
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "D-Side 1";
