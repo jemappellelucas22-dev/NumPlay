@@ -93,49 +93,96 @@ static bool solid_at(int x,int y){
  for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&b.h>1&&x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h)return true;}
  return false;
 }
+static bool solid_box(int x,int y){
+ for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&b.h>1&&overlap(x,y,PW,PH,b))return true;}
+ return false;
+}
+static bool grounded_now(void){
+ for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&b.h>1&&overlap(px,py+1,PW,PH,b))return true;}
+ return false;
+}
+static int touching_wall(void){
+ for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2||b.h<2)continue;
+  if(overlap(px-1,py+2,1,PH-4,b))return -1;
+  if(overlap(px+PW,py+2,1,PH-4,b))return 1;
+ }
+ return 0;
+}
+static bool move_x(int amount){
+ int step=amount>0?1:-1;
+ for(int n=0;n<(amount>0?amount:-amount);n++){
+  px+=step;
+  if(solid_box(px,py)){px-=step;vx=0;return true;}
+ }
+ return false;
+}
+static bool move_y(int amount){
+ int step=amount>0?1:-1;
+ for(int n=0;n<(amount>0?amount:-amount);n++){
+  py+=step;
+  if(solid_box(px,py)){
+   py-=step;vy=0;
+   if(step>0){ground=1;dash_used=0;}
+   return true;
+  }
+ }
+ return false;
+}
 static void update_player(uint64_t keys,uint64_t pressed){
  int dir=(!!(keys&KEY(eadk_key_right)))-(!!(keys&KEY(eadk_key_left)));
  int aimx=dir,aimy=(!!(keys&KEY(eadk_key_down)))-(!!(keys&KEY(eadk_key_up)));
  bool grabbing=(keys&KEY(eadk_key_toolbox))!=0;
- if(pressed&KEY(eadk_key_ok)){jump_buffer=10;jump_hold=1;}else if(jump_buffer)jump_buffer--;
- if(!(keys&KEY(eadk_key_ok)))jump_hold=0;
+ bool was_ground=grounded_now();
+ ground=was_ground;
+ if(pressed&KEY(eadk_key_ok))jump_buffer=9;else if(jump_buffer)jump_buffer--;
  if(dir)facing=dir;
- if(ground)coyote=7;else if(coyote)coyote--;
- wall=0;
- if(!ground){
-  if(solid_at(px-2,py+4)||solid_at(px-2,py+PH-3))wall=-1;
-  if(solid_at(px+PW+1,py+4)||solid_at(px+PW+1,py+PH-3))wall=1;
- }
- if(grabbing&&wall&& !ground){grab=1;}else grab=0;
- if(pressed&KEY(eadk_key_back) && !dash_used){
+ if(ground)coyote=8;else if(coyote)coyote--;
+ wall=ground?0:touching_wall();
+ /* Wall grab is held, not toggled. It stops the fall and locks the player to the wall. */
+ grab=grabbing&&wall&&!ground&&!dash;
+ if(grab){vy=0;vx=0;}
+ if(pressed&KEY(eadk_key_back)&&!dash_used&&!grab){
   if(!aimx&&!aimy)aimx=facing;
   float len=(aimx&&aimy)?1.41421356f:1.0f;
-  vx=aimx*6.2f/len;vy=aimy*6.2f/len;dash=DASH_TIME;dash_used=1;
-  shake=2;burst(px+PW/2,py+PH/2,5,1);
+  vx=aimx*6.4f/len;vy=aimy*6.4f/len;
+  dash=DASH_TIME;dash_used=1;jump_buffer=0;
+  shake=2;burst(px+PW/2,py+PH/2,7,1);
  }
  if(dash){
-  px+=(int)iround(vx);py+=(int)iround(vy);dash--;
+  bool hitx=move_x(iround(vx));
+  bool hity=move_y(iround(vy));
+  if(hitx||hity){dash=0;vx*=0.35f;vy*=0.35f;}
+  else dash--;
   if(dash==0){vx*=0.45f;vy*=0.45f;}
- }else{
-  float target=dir*2.25f;
-  vx+=(target-vx)*(ground?0.42f:0.20f);
-  if(!dir&&ground)vx*=0.72f;
-  if(grab){vy=vy<1.2f?vy:1.2f;vx=0;}
-  else {vy+=0.38f;if(vy>6.0f)vy=6.0f; if(jump_hold&&vy<0)vy-=0.10f; if(!jump_hold&&vy<-3.0f)vy=-3.0f;}
+ }else if(!grab){
+  float target=dir*2.35f;
+  float accel=ground?0.48f:0.24f;
+  vx+=(target-vx)*accel;
+  if(!dir&&ground)vx*=0.70f;
+  vy+=0.40f;if(vy>6.0f)vy=6.0f;
+  /* Variable-height jump: releasing jump early cuts upward speed once. */
+  if(!(keys&KEY(eadk_key_ok))&&vy<-3.0f)vy=-3.0f;
   if(jump_buffer&&(ground||coyote)){
-   vy=-8.0f;jump_buffer=0;coyote=0;ground=0;burst(px+PW/2,py+PH,5,0);
+   vy=-8.1f;jump_buffer=0;coyote=0;ground=0;
+   burst(px+PW/2,py+PH,5,0);
   }else if(jump_buffer&&wall){
-   vy=-7.7f;vx=-wall*5.2f;jump_buffer=0;facing=-wall;burst(px+PW/2,py+PH/2,6,0);
+   vy=-7.8f;vx=-wall*5.3f;jump_buffer=0;facing=-wall;grab=0;
+   burst(px+PW/2,py+PH/2,6,0);
   }
-  /* Move and resolve each axis in 1-pixel steps: no tunnelling through thin ledges. */
-  int dx=iround(vx),sx=dx>0?1:-1;
-  for(int step=0;step<(dx>0?dx:-dx);step++){px+=sx;for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&overlap(px,py,PW,PH,b)){px=sx>0?b.x-PW:b.x+b.w;vx=0;step=99;break;}}}
-  int dy=iround(vy),sy=dy>0?1:-1;ground=0;
-  for(int step=0;step<(dy>0?dy:-dy);step++){py+=sy;for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&overlap(px,py,PW,PH,b)){if(sy>0){py=b.y-PH;ground=1;dash_used=0;}else py=b.y+b.h;vy=0;step=99;break;}}}
+  move_x(iround(vx));
+  ground=0;
+  move_y(iround(vy));
+ }else{
+  /* Gentle wall slide, with a hard cap so grabbing is predictable. */
+  if(vy>0.65f)vy=0.65f;
+  if(dir==-wall){grab=0;vx=dir*1.2f;vy+=0.40f;move_x(iround(vx));ground=0;move_y(iround(vy));}
  }
+ ground=grounded_now();
+ if(ground){dash_used=0;if(vy>0)vy=0;}
+ wall=ground?0:touching_wall();
  px=clampi(px,0,RW-PW);
  if(py>H+20||py<-30){die();return;}
- for(int i=0;i<5;i++)if(spikes[room][i].w&&overlap(px,py,PW,PH,spikes[room][i])){die();return;}
+ for(int i=0;i<5;i++)if(overlap(px,py,PW,PH,spikes[room][i])){die();return;}
  for(int i=0;i<2;i++)if(!orb_taken[room][i]&&overlap(px,py,PW,PH,(Box){orbs[room][i].x-7,orbs[room][i].y-7,14,14})){
   orb_taken[room][i]=1;dash_used=0;burst(orbs[room][i].x,orbs[room][i].y,10,1);
  }
