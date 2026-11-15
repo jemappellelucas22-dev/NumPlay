@@ -66,7 +66,7 @@ static int paragraphc(const np_font_t *f,int x,int y,int w,int line,const char *
 
 static Particle particles[MAX_PART];
 static int room=0, deaths=0, frames=0, state=0, dash=0, dash_used=0;
-static int px=22,py=194,cam=0,ground=0,wall=0,grab=0,coyote=0,jump_buffer=0;
+static int px=22,py=194,cam=0,ground=0,wall=0,grab=0,coyote=0,jump_buffer=0,facing=1,jump_hold=0;
 static float vx=0,vy=0;
 static int shake=0,orb_taken[ROOMS][2],trail=0,death_flash=0;
 static uint64_t previous=0;
@@ -85,7 +85,7 @@ static void particle(int x,int y,int kind){
 }
 static void burst(int x,int y,int n,int kind){for(int i=0;i<n;i++)particle(x,y,kind);}
 static void reset_room(void){
- px=room==0?22:24;py=194;vx=vy=0;dash=0;dash_used=0;ground=wall=grab=coyote=jump_buffer=0;shake=0;
+ px=room==0?22:24;py=194;vx=vy=0;dash=0;dash_used=0;ground=wall=grab=coyote=jump_buffer=jump_hold=0;shake=0;
 }
 static void start_game(void){room=0;deaths=0;frames=0;best_room=0;for(int r=0;r<ROOMS;r++)for(int o=0;o<2;o++)orb_taken[r][o]=0;reset_room();state=PLAY;}
 static void die(void){deaths++;death_flash=9;shake=7;burst(px+PW/2,py+PH/2,12,0);reset_room();}
@@ -97,7 +97,9 @@ static void update_player(uint64_t keys,uint64_t pressed){
  int dir=(!!(keys&KEY(eadk_key_right)))-(!!(keys&KEY(eadk_key_left)));
  int aimx=dir,aimy=(!!(keys&KEY(eadk_key_down)))-(!!(keys&KEY(eadk_key_up)));
  bool grabbing=(keys&KEY(eadk_key_toolbox))!=0;
- if(pressed&KEY(eadk_key_ok))jump_buffer=7;else if(jump_buffer)jump_buffer--;
+ if(pressed&KEY(eadk_key_ok)){jump_buffer=10;jump_hold=1;}else if(jump_buffer)jump_buffer--;
+ if(!(keys&KEY(eadk_key_ok)))jump_hold=0;
+ if(dir)facing=dir;
  if(ground)coyote=7;else if(coyote)coyote--;
  wall=0;
  if(!ground){
@@ -106,9 +108,9 @@ static void update_player(uint64_t keys,uint64_t pressed){
  }
  if(grabbing&&wall&& !ground){grab=1;}else grab=0;
  if(pressed&KEY(eadk_key_back) && !dash_used){
-  if(!aimx&&!aimy)aimx=dir?dir:1;
+  if(!aimx&&!aimy)aimx=facing;
   float len=(aimx&&aimy)?1.41421356f:1.0f;
-  vx=aimx*5.8f/len;vy=aimy*5.8f/len;dash=DASH_TIME;dash_used=1;
+  vx=aimx*6.2f/len;vy=aimy*6.2f/len;dash=DASH_TIME;dash_used=1;
   shake=2;burst(px+PW/2,py+PH/2,5,1);
  }
  if(dash){
@@ -119,25 +121,17 @@ static void update_player(uint64_t keys,uint64_t pressed){
   vx+=(target-vx)*(ground?0.42f:0.20f);
   if(!dir&&ground)vx*=0.72f;
   if(grab){vy=vy<1.2f?vy:1.2f;vx=0;}
-  else {vy+=0.42f;if(vy>6.2f)vy=6.2f;}
+  else {vy+=0.38f;if(vy>6.0f)vy=6.0f; if(jump_hold&&vy<0)vy-=0.10f; if(!jump_hold&&vy<-3.0f)vy=-3.0f;}
   if(jump_buffer&&(ground||coyote)){
-   vy=-7.6f;jump_buffer=0;coyote=0;ground=0;burst(px+PW/2,py+PH,3,0);
+   vy=-8.0f;jump_buffer=0;coyote=0;ground=0;burst(px+PW/2,py+PH,5,0);
   }else if(jump_buffer&&wall){
-   vy=-7.2f;vx=-wall*4.8f;jump_buffer=0;burst(px+PW/2,py+PH/2,4,0);
+   vy=-7.7f;vx=-wall*5.2f;jump_buffer=0;facing=-wall;burst(px+PW/2,py+PH/2,6,0);
   }
-  /* horizontal collision */
-  px+=(int)iround(vx);
-  for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2)continue;
-   if(overlap(px,py,PW,PH,b)){if(vx>0)px=b.x-PW;else if(vx<0)px=b.x+b.w;vx=0;}
-  }
-  /* vertical collision */
-  int oldy=py;py+=(int)iround(vy);ground=0;
-  for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2)continue;
-   if(overlap(px,py,PW,PH,b)){
-    if(vy>0&&oldy+PH<=b.y+3){py=b.y-PH;vy=0;ground=1;dash_used=0;}
-    else if(vy<0&&oldy>=b.y+b.h-2){py=b.y+b.h;vy=0;}
-   }
-  }
+  /* Move and resolve each axis in 1-pixel steps: no tunnelling through thin ledges. */
+  int dx=iround(vx),sx=dx>0?1:-1;
+  for(int step=0;step<(dx>0?dx:-dx);step++){px+=sx;for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&overlap(px,py,PW,PH,b)){px=sx>0?b.x-PW:b.x+b.w;vx=0;step=99;break;}}}
+  int dy=iround(vy),sy=dy>0?1:-1;ground=0;
+  for(int step=0;step<(dy>0?dy:-dy);step++){py+=sy;for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w>1&&overlap(px,py,PW,PH,b)){if(sy>0){py=b.y-PH;ground=1;dash_used=0;}else py=b.y+b.h;vy=0;step=99;break;}}}
  }
  px=clampi(px,0,RW-PW);
  if(py>H+20||py<-30){die();return;}
@@ -200,13 +194,16 @@ static void draw_room(void){
  }
  /* exit beacon */
  fillc(screen_x(RW-24),150,3,72,0x58E5D4);circlec(screen_x(RW-22),148,5,0xD4FFF7,240);
- /* Madeline: hair, body, face, scarf */
+ /* Detailed tiny pixel-art runner: hair, face, coat, scarf and animated feet. */
  int x=screen_x(px),y=py;
- if(dash){roundc(x-(int)(vx*1.3f),y-(int)(vy*1.3f)+3,9,8,4,0x70E9DF,120);}
- roundc(x-1,y+2,12,12,4,0xD94E6B,255);fillc(x+1,y+1,8,5,0xF08A9A);
- fillc(x+6,y+5,2,2,0xF9E7D5);fillc(x+8,y+8,3,3,0x9B354E);
- fillc(x+1,y+12,3,2,0x26334D);fillc(x+7,y+12,3,2,0x26334D);
- if(dash){for(int i=0;i<3;i++)fillc(x-5-i*4,y+5+i*2,3,2,0x70E9DF);}
+ if(dash){roundc(x-(int)(vx*1.6f),y-(int)(vy*1.6f)+2,14,10,5,0x70E9DF,95);}
+ fillc(x+2,y+1,7,3,0x6D344E);fillc(x+1,y+3,4,3,0x8F405C);
+ roundc(x+2,y+3,8,7,3,0xE9B99A,255);fillc(x+8,y+5,2,2,0x18243B);
+ roundc(x,y+8,10,6,3,0xD94E6B,255);fillc(x+1,y+9,7,2,0xF17C91);
+ fillc(x-2,y+9,5,2,0x70E9DF);fillc(x-4,y+10,4,1,0xB7FFF5);
+ fillc(x+1,y+13,3,2,0x26334D);fillc(x+7,y+13,3,2,0x26334D);
+ if((frames/6)&1){fillc(x+1,y+14,3,1,0xE7C8B5);fillc(x+7,y+14,3,1,0xE7C8B5);}
+ if(dash){for(int i=0;i<4;i++)fillc(x-5-i*3,y+5+i%2*2,3,2,0x70E9DF);}
  /* particles */
  for(int i=0;i<MAX_PART;i++)if(particles[i].life){Particle p=particles[i];int a=p.life*16;
   circlec(screen_x(p.x),p.y,p.kind?2:1,p.kind?0x70E9DF:0xF4B8C3,a);
