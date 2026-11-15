@@ -1,22 +1,34 @@
 # D-Side 1 — Ville abandonnée
 
-Premier prototype jouable original pour NumWorks N0120, construit comme une application autonome à partir du SDK de NumPlay.
+Un chapitre original de plateforme inspiré de Celeste, conçu pour NumWorks N0120.
+
+## Ce qui est dans cette version
+
+- Cinq quartiers originaux, chacun construit sur deux écrans avec caméra qui suit Madeline.
+- Déplacement horizontal avec accélération, saut avec tolérance au bord (coyote time) et saut mural.
+- Dash directionnel, recharge au sol et cristaux de recharge à récupérer.
+- Accroche aux murs avec Toolbox, pics, particules, effets de dash et transitions.
+- Menu, écran de commandes, pause, compteur de morts et écran de fin.
+- Graphismes dessinés en 16 bits, ambiance nocturne de ville abandonnée.
 
 ## Commandes
-- Flèches : déplacement et direction du dash
-- OK : sauter / valider
-- Back : dash (et reprendre depuis la pause)
-- Backspace : pause
-- Home : quitter
 
-Le chapitre contient cinq salles sur un écran chacune. Les cartes, plateformes, obstacles et couleurs sont dessinés par le programme : aucune carte ou ressource du mod D-Sides n'est copiée.
+- Flèches : courir et viser le dash
+- OK : sauter
+- Back : dash
+- Toolbox (maintenir) : s'accrocher aux murs
+- Backspace : pause / reprendre
+- Home : quitter l'application
 
 ## Compilation
-Depuis la racine du dépôt, après `python tools/setup.py` et l'activation de l'environnement NumPlay :
+
+Depuis la racine du dépôt :
 
 ```sh
 make -C games/dside1
 make -C games/dside1 check
 ```
 
-Le fichier généré est `games/dside1/output/DSide1.nwa`. Le binaire doit encore être compilé et testé dans l'émulateur puis sur une NumWorks N0120 avant d'être annoncé comme validé.
+L'application générée est `games/dside1/output/DSide1.nwa`.
+
+Le jeu doit encore être testé sur une NumWorks N0120 réelle pour ajuster la difficulté, les collisions et le rythme des salles.
