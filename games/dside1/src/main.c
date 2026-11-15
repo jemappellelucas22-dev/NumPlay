@@ -5,7 +5,6 @@
 #include <eadk.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <math.h>
 #include "../../common/epsilon_app.h"
 #include "../../../launcher/src/gfx.h"
 #include "../../common/np_text.h"
@@ -67,6 +66,7 @@ enum { MENU, PLAY, PAUSE, COMPLETE, HELP };
 static uint32_t rnd(void){rng^=rng<<13;rng^=rng>>17;rng^=rng<<5;return rng;}
 static bool overlap(int x,int y,int w,int h,Box b){return x<b.x+b.w&&x+w>b.x&&y<b.y+b.h&&y+h>b.y;}
 static int clampi(int v,int a,int b){return v<a?a:v>b?b:v;}
+static int iround(float v){return (int)(v+(v>=0?0.5f:-0.5f));}
 static void particle(int x,int y,int kind){
  for(int i=0;i<MAX_PART;i++)if(!particles[i].life){
   particles[i]=(Particle){x,y,((int)(rnd()%65)-32)/16.0f,-(int)(rnd()%45)/12.0f,14+(int)(rnd()%15),kind};break;
@@ -101,7 +101,7 @@ static void update_player(uint64_t keys,uint64_t pressed){
   shake=2;burst(px+PW/2,py+PH/2,5,1);
  }
  if(dash){
-  px+=(int)lrintf(vx);py+=(int)lrintf(vy);dash--;
+  px+=(int)iround(vx);py+=(int)iround(vy);dash--;
   if(dash==0){vx*=0.45f;vy*=0.45f;}
  }else{
   float target=dir*2.25f;
@@ -115,12 +115,12 @@ static void update_player(uint64_t keys,uint64_t pressed){
    vy=-7.2f;vx=-wall*4.8f;jump_buffer=0;burst(px+PW/2,py+PH/2,4,0);
   }
   /* horizontal collision */
-  px+=(int)lrintf(vx);
+  px+=(int)iround(vx);
   for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2)continue;
    if(overlap(px,py,PW,PH,b)){if(vx>0)px=b.x-PW;else if(vx<0)px=b.x+b.w;vx=0;}
   }
   /* vertical collision */
-  int oldy=py;py+=(int)lrintf(vy);ground=0;
+  int oldy=py;py+=(int)iround(vy);ground=0;
   for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2)continue;
    if(overlap(px,py,PW,PH,b)){
     if(vy>0&&oldy+PH<=b.y+3){py=b.y-PH;vy=0;ground=1;dash_used=0;}
@@ -148,7 +148,7 @@ static void update(uint64_t keys,uint64_t pressed){
  if(pressed&KEY(eadk_key_backspace)){state=PAUSE;return;}
  update_player(keys,pressed);
  frames++;
- for(int i=0;i<MAX_PART;i++)if(particles[i].life){particles[i].x+=(int)lrintf(particles[i].vx);particles[i].y+=(int)lrintf(particles[i].vy);particles[i].vy+=0.12f;particles[i].life--;}
+ for(int i=0;i<MAX_PART;i++)if(particles[i].life){particles[i].x+=(int)iround(particles[i].vx);particles[i].y+=(int)iround(particles[i].vy);particles[i].vy+=0.12f;particles[i].life--;}
  if(shake)shake--;
  if(death_flash)death_flash--;
 }
