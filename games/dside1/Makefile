@@ -8,7 +8,7 @@ HEADERS = ../common/epsilon_app.h ../common/epsilon_files.h ../common/np_text.h 
 CFLAGS = -std=c11 $(shell $(NWLINK) eadk-cflags-device)
 CFLAGS += -Os -Wall -Wextra -Wno-unused-parameter -fno-math-errno -fsingle-precision-constant
 CFLAGS += -fno-tree-loop-distribute-patterns -flto -fno-fat-lto-objects -fwhole-program -fvisibility=internal
-LDFLAGS = -lm -Wl,--relocatable -nostartfiles --specs=nano.specs -Wl,-e,main -Wl,-u,eadk_app_name -Wl,-u,eadk_app_icon -Wl,-u,eadk_api_level -Wl,--gc-sections -flinker-output=nolto-rel
+LDFLAGS = -Wl,--relocatable -nostartfiles --specs=nano.specs -Wl,-e,main -Wl,-u,eadk_app_name -Wl,-u,eadk_app_icon -Wl,-u,eadk_api_level -Wl,--gc-sections -flinker-output=nolto-rel
 .PHONY: build check clean
 build: $(BUILD_DIR)/DSide1.nwa
 check: build
@@ -25,7 +25,7 @@ $(BUILD_DIR)/xfont.o: ../../launcher/src/xfont.c ../../launcher/src/np_xfont.h $
 $(BUILD_DIR)/icon.o: ../../sdk/template/src/icon.png | $(BUILD_DIR)
 	$(Q) $(NWLINK) png-icon-o $< $@
 $(BUILD_DIR)/DSide1.nwa: $(BUILD_DIR)/main.o $(BUILD_DIR)/gfx.o $(BUILD_DIR)/font_data.o $(BUILD_DIR)/xfont.o $(BUILD_DIR)/icon.o
-	$(Q) $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(Q) $(CC) $(CFLAGS) $(LDFLAGS) $^ -lm -o $@
 	$(Q) arm-none-eabi-strip --strip-unneeded $@
 $(BUILD_DIR):
 	$(Q) mkdir -p $@
