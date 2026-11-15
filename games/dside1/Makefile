@@ -25,7 +25,7 @@ $(BUILD_DIR)/xfont.o: ../../launcher/src/xfont.c ../../launcher/src/np_xfont.h $
 $(BUILD_DIR)/icon.o: ../../sdk/template/src/icon.png | $(BUILD_DIR)
 	$(Q) $(NWLINK) png-icon-o $< $@
 $(BUILD_DIR)/DSide1.nwa: $(BUILD_DIR)/main.o $(BUILD_DIR)/gfx.o $(BUILD_DIR)/font_data.o $(BUILD_DIR)/xfont.o $(BUILD_DIR)/icon.o
-	$(Q) $(CC) $(CFLAGS) $(LDFLAGS) $^ -lm -o $@
+	$(Q) $(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
 	$(Q) arm-none-eabi-strip --strip-unneeded $@
 $(BUILD_DIR):
 	$(Q) mkdir -p $@
