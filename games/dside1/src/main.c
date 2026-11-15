@@ -53,6 +53,17 @@ static const Orb orbs[ROOMS][2]={
 };
 static const char *room_names[ROOMS]={"LE DERNIER TOIT","LES RUELLES","LE CHANTIER","LE CLOCHER","AU-DESSUS DES NUAGES"};
 static color_t strip[W*STRIP_H];
+/* The drawing API takes RGB565; keep the level palette readable as RGB888. */
+static void fillc(int x,int y,int w,int h,uint32_t c){gfx_fill(x,y,w,h,gfx_rgb(c));}
+static void fillac(int x,int y,int w,int h,uint32_t c,int a){gfx_fill_alpha(x,y,w,h,gfx_rgb(c),a);}
+static void roundc(int x,int y,int w,int h,int r,uint32_t c,int a){gfx_rrect(x,y,w,h,r,gfx_rgb(c),a);}
+static void circlec(int x,int y,int r,uint32_t c,int a){gfx_circle(x,y,r,gfx_rgb(c),a);}
+static void outlinec(int x,int y,int w,int h,int r,int t,uint32_t c,int a){gfx_rrect_outline(x,y,w,h,r,t,gfx_rgb(c),a);}
+static void textc(const np_font_t *f,int x,int y,const char *s,uint32_t c,int a){gfx_text(f,x,y,s,gfx_rgb(c),a);}
+static void centerc(const np_font_t *f,int x,int y,const char *s,uint32_t c,int a){gfx_text_center(f,x,y,s,gfx_rgb(c),a);}
+static void rightc(const np_font_t *f,int x,int y,const char *s,uint32_t c,int a){gfx_text_right(f,x,y,s,gfx_rgb(c),a);}
+static int paragraphc(const np_font_t *f,int x,int y,int w,int line,const char *s,uint32_t c,int a){return gfx_paragraph(f,x,y,w,line,s,gfx_rgb(c),a);}
+
 static Particle particles[MAX_PART];
 static int room=0, deaths=0, frames=0, state=0, dash=0, dash_used=0;
 static int px=22,py=194,cam=0,ground=0,wall=0,grab=0,coyote=0,jump_buffer=0;
@@ -155,88 +166,88 @@ static void update(uint64_t keys,uint64_t pressed){
 static int screen_x(int x){return x-cam;}
 static void draw_spikes(Box b){
  int x0=screen_x(b.x),n=b.w/8;
- for(int i=0;i<n;i++){int x=x0+i*8;gfx_fill(x+3,b.y+1,2,2,0xF6A2A8);gfx_fill(x+2,b.y+3,4,2,0xF05B68);gfx_fill(x+1,b.y+5,6,3,0xD83E5C);}
+ for(int i=0;i<n;i++){int x=x0+i*8;fillc(x+3,b.y+1,2,2,0xF6A2A8);fillc(x+2,b.y+3,4,2,0xF05B68);fillc(x+1,b.y+5,6,3,0xD83E5C);}
 }
 static void draw_city(void){
  /* distant skyline, window lights and drifting clouds */
  for(int i=0;i<9;i++){
   int x=(i*91-(cam/4)%91)-12,h=70+(i*37%75),y=211-h;
-  gfx_fill(x,y,45,h,0x1A2742);gfx_fill(x+5,y+7,35,3,0x34435E);
+  fillc(x,y,45,h,0x1A2742);fillc(x+5,y+7,35,3,0x34435E);
   for(int wy=y+17;wy<205;wy+=17)for(int wx=x+9;wx<x+40;wx+=13)
-   if(((wx+wy+i*3)/13)%3)gfx_fill(wx,wy,4,5,0x4B6279);
+   if(((wx+wy+i*3)/13)%3)fillc(wx,wy,4,5,0x4B6279);
  }
- for(int i=0;i<5;i++){int x=(i*103-(cam/2)%103+W)%W;gfx_rrect(x,54+i%3*19,32,3,2,0x42516B,100);}
+ for(int i=0;i<5;i++){int x=(i*103-(cam/2)%103+W)%W;roundc(x,54+i%3*19,32,3,2,0x42516B,100);}
 }
 static void draw_room(void){
  gfx_vgrad(0,0,W,H,0x0B142B,0x263552);draw_city();
  /* moon */
- gfx_circle(263-(cam/8)%30,52,15,0xE3D9C2,180);gfx_circle(269-(cam/8)%30,46,15,0x17233D,220);
+ circlec(263-(cam/8)%30,52,15,0xE3D9C2,180);circlec(269-(cam/8)%30,46,15,0x17233D,220);
  /* background building silhouettes */
- gfx_fill(0,210,W,30,0x111B31);
- for(int i=0;i<12;i++){int x=(i*31-(cam/2)%31);gfx_fill(x,174+(i*19%30),18,40,0x26334D);}
+ fillc(0,210,W,30,0x111B31);
+ for(int i=0;i<12;i++){int x=(i*31-(cam/2)%31);fillc(x,174+(i*19%30),18,40,0x26334D);}
  /* platforms */
  for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2)continue;int x=screen_x(b.x);
-  gfx_fill(x,b.y,b.w,b.h,0x56647B);gfx_fill(x,b.y,b.w,3,0xA5B4C8);
-  gfx_fill(x,b.y+b.h-3,b.w,3,0x35445D);
-  for(int k=8;k<b.w-5;k+=19){gfx_fill(x+k,b.y+5,2,2,0x8190A5);}
+  fillc(x,b.y,b.w,b.h,0x56647B);fillc(x,b.y,b.w,3,0xA5B4C8);
+  fillc(x,b.y+b.h-3,b.w,3,0x35445D);
+  for(int k=8;k<b.w-5;k+=19){fillc(x+k,b.y+5,2,2,0x8190A5);}
  }
  for(int i=0;i<5;i++)draw_spikes(spikes[room][i]);
  /* crystal dash refills */
  for(int i=0;i<2;i++)if(!orb_taken[room][i]){
   int x=screen_x(orbs[room][i].x),y=orbs[room][i].y;
-  gfx_circle(x,y,10,0x48D9D1,36);gfx_rrect(x-4,y-7,8,14,3,0x75F1E4,245);
-  gfx_fill(x-2,y-5,2,4,0xE0FFFF);
+  circlec(x,y,10,0x48D9D1,36);roundc(x-4,y-7,8,14,3,0x75F1E4,245);
+  fillc(x-2,y-5,2,4,0xE0FFFF);
  }
  /* exit beacon */
- gfx_fill(screen_x(RW-24),150,3,72,0x58E5D4);gfx_circle(screen_x(RW-22),148,5,0xD4FFF7,240);
+ fillc(screen_x(RW-24),150,3,72,0x58E5D4);circlec(screen_x(RW-22),148,5,0xD4FFF7,240);
  /* Madeline: hair, body, face, scarf */
  int x=screen_x(px),y=py;
- if(dash){gfx_rrect(x-(int)(vx*1.3f),y-(int)(vy*1.3f)+3,9,8,4,0x70E9DF,120);}
- gfx_rrect(x-1,y+2,12,12,4,0xD94E6B,255);gfx_fill(x+1,y+1,8,5,0xF08A9A);
- gfx_fill(x+6,y+5,2,2,0xF9E7D5);gfx_fill(x+8,y+8,3,3,0x9B354E);
- gfx_fill(x+1,y+12,3,2,0x26334D);gfx_fill(x+7,y+12,3,2,0x26334D);
- if(dash){for(int i=0;i<3;i++)gfx_fill(x-5-i*4,y+5+i*2,3,2,0x70E9DF);}
+ if(dash){roundc(x-(int)(vx*1.3f),y-(int)(vy*1.3f)+3,9,8,4,0x70E9DF,120);}
+ roundc(x-1,y+2,12,12,4,0xD94E6B,255);fillc(x+1,y+1,8,5,0xF08A9A);
+ fillc(x+6,y+5,2,2,0xF9E7D5);fillc(x+8,y+8,3,3,0x9B354E);
+ fillc(x+1,y+12,3,2,0x26334D);fillc(x+7,y+12,3,2,0x26334D);
+ if(dash){for(int i=0;i<3;i++)fillc(x-5-i*4,y+5+i*2,3,2,0x70E9DF);}
  /* particles */
  for(int i=0;i<MAX_PART;i++)if(particles[i].life){Particle p=particles[i];int a=p.life*16;
-  gfx_circle(screen_x(p.x),p.y,p.kind?2:1,p.kind?0x70E9DF:0xF4B8C3,a);
+  circlec(screen_x(p.x),p.y,p.kind?2:1,p.kind?0x70E9DF:0xF4B8C3,a);
  }
  /* HUD */
- gfx_fill(0,0,W,25,0x091124);gfx_fill(0,24,W,1,0x3B4C68);
- gfx_text(&np_font_small,7,16,"VILLE ABANDONNEE",0xFFFF,245);
- gfx_text_right(&np_font_small,312,16,room_names[room],0xFFD875,255);
- gfx_text(&np_font_small,8,40,"DASH",0xD8E6F4,230);
- gfx_rrect(43,30,13,8,3,dash_used?0x536078:0x70E9DF,255);
- gfx_text_right(&np_font_small,311,40,"TOOLBOX: ACCROCHER",0xAFC2D8,210);
- gfx_text(&np_font_small,8,232,"MORTS",0xAFC2D8,210);
+ fillc(0,0,W,25,0x091124);fillc(0,24,W,1,0x3B4C68);
+ textc(&np_font_small,7,16,"VILLE ABANDONNEE",0xFFFF,245);
+ rightc(&np_font_small,312,16,room_names[room],0xFFD875,255);
+ textc(&np_font_small,8,40,"DASH",0xD8E6F4,230);
+ roundc(43,30,13,8,3,dash_used?0x536078:0x70E9DF,255);
+ rightc(&np_font_small,311,40,"TOOLBOX: ACCROCHER",0xAFC2D8,210);
+ textc(&np_font_small,8,232,"MORTS",0xAFC2D8,210);
  char n[8];int v=deaths,k=0;do{n[k++]=(char)('0'+v%10);v/=10;}while(v&&k<6);for(int i=0;i<k/2;i++){char t=n[i];n[i]=n[k-1-i];n[k-1-i]=t;}n[k]=0;
- gfx_text(&np_font_small,48,232,n,0xFFFFFF,255);
+ textc(&np_font_small,48,232,n,0xFFFFFF,255);
  if(state!=PLAY){
-  gfx_fill_alpha(0,0,W,H,0x070D1B,185);gfx_shadow(39,55,242,132,13,8,130);gfx_rrect(39,55,242,132,13,0x263653,255);
-  gfx_rrect_outline(39,55,242,132,13,1,0x7187A7,170);
+  fillac(0,0,W,H,0x070D1B,185);gfx_shadow(39,55,242,132,13,8,130);roundc(39,55,242,132,13,0x263653,255);
+  outlinec(39,55,242,132,13,1,0x7187A7,170);
   if(state==MENU){
-   gfx_text_center(&np_font_title,160,87,"D-SIDE 1",0xFFD875,255);
-   gfx_text_center(&np_font_body,160,111,"VILLE ABANDONNEE",0xFFFFFF,255);
-   gfx_paragraph(&np_font_small,160,137,195,13,"Un nouveau defi. Cinq quartiers. Un seul dash.",0xC5D5E8,255);
-   gfx_text_center(&np_font_body,160,174,"OK  POUR JOUER",0x70E9DF,255);
+   centerc(&np_font_title,160,87,"D-SIDE 1",0xFFD875,255);
+   centerc(&np_font_body,160,111,"VILLE ABANDONNEE",0xFFFFFF,255);
+   paragraphc(&np_font_small,160,137,195,13,"Un nouveau defi. Cinq quartiers. Un seul dash.",0xC5D5E8,255);
+   centerc(&np_font_body,160,174,"OK  POUR JOUER",0x70E9DF,255);
   }else if(state==HELP){
-   gfx_text_center(&np_font_title,160,83,"COMMANDES",0xFFD875,255);
-   gfx_text_center(&np_font_small,160,111,"Fleches : courir et viser",0xFFFFFF,255);
-   gfx_text_center(&np_font_small,160,128,"OK : sauter   BACK : dash",0xFFFFFF,255);
-   gfx_text_center(&np_font_small,160,145,"TOOLBOX : s'accrocher au mur",0xFFFFFF,255);
-   gfx_text_center(&np_font_small,160,174,"OK OU BACK POUR RETOUR",0x70E9DF,255);
+   centerc(&np_font_title,160,83,"COMMANDES",0xFFD875,255);
+   centerc(&np_font_small,160,111,"Fleches : courir et viser",0xFFFFFF,255);
+   centerc(&np_font_small,160,128,"OK : sauter   BACK : dash",0xFFFFFF,255);
+   centerc(&np_font_small,160,145,"TOOLBOX : s'accrocher au mur",0xFFFFFF,255);
+   centerc(&np_font_small,160,174,"OK OU BACK POUR RETOUR",0x70E9DF,255);
   }else if(state==PAUSE){
-   gfx_text_center(&np_font_title,160,92,"PAUSE",0xFFD875,255);
-   gfx_text_center(&np_font_body,160,121,"OK : recommencer la salle",0xFFFFFF,255);
-   gfx_text_center(&np_font_body,160,145,"BACK : menu principal",0xFFFFFF,255);
-   gfx_text_center(&np_font_small,160,174,"BACKSPACE : reprendre",0x70E9DF,255);
+   centerc(&np_font_title,160,92,"PAUSE",0xFFD875,255);
+   centerc(&np_font_body,160,121,"OK : recommencer la salle",0xFFFFFF,255);
+   centerc(&np_font_body,160,145,"BACK : menu principal",0xFFFFFF,255);
+   centerc(&np_font_small,160,174,"BACKSPACE : reprendre",0x70E9DF,255);
   }else{
-   gfx_text_center(&np_font_title,160,91,"CHAPITRE TERMINE",0xFFD875,255);
-   gfx_text_center(&np_font_body,160,120,"Tu as traverse la ville !",0xFFFFFF,255);
-   gfx_text_center(&np_font_small,160,148,"OK POUR RECOMMENCER",0x70E9DF,255);
-   gfx_text_center(&np_font_small,160,169,"MORTS : regarde si tu peux faire mieux",0xC5D5E8,255);
+   centerc(&np_font_title,160,91,"CHAPITRE TERMINE",0xFFD875,255);
+   centerc(&np_font_body,160,120,"Tu as traverse la ville !",0xFFFFFF,255);
+   centerc(&np_font_small,160,148,"OK POUR RECOMMENCER",0x70E9DF,255);
+   centerc(&np_font_small,160,169,"MORTS : regarde si tu peux faire mieux",0xC5D5E8,255);
   }
  }
- if(death_flash)gfx_fill_alpha(0,0,W,H,0xF05B68,death_flash*9);
+ if(death_flash)fillac(0,0,W,H,0xF05B68,death_flash*9);
 }
 static void scene(void *ctx){(void)ctx;draw_room();}
 int main(void){
