@@ -8,37 +8,38 @@ on:
       - "games/common/**"
       - "launcher/src/**"
       - "sdk/template/src/icon.png"
+      - ".github/actions/setup/action.yml"
       - ".github/workflows/dside1.yml"
-      - "tools/setup.py"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Install build tools
+      # Reuse the exact toolchain setup already proven by NumPlay's main build.
+      # This avoids a second, separate installer and a brittle ~/.numplay path check.
+      - uses: ./.github/actions/setup
+
+      - name: Verify toolchain
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y make
-          python3 tools/setup.py
-          test -x "$HOME/.numplay/xpack-arm-none-eabi-gcc-15.2.1-1.1/bin/arm-none-eabi-gcc"
-          test -x "$HOME/.numplay/node_modules/.bin/nwlink"
+          command -v arm-none-eabi-gcc
+          command -v arm-none-eabi-strip
+          command -v nwlink
+          arm-none-eabi-gcc --version
+
       - name: Build D-Side 1
         shell: bash
         run: |
-          source "$HOME/.numplay/env.sh"
-          echo "Compiler: $(command -v arm-none-eabi-gcc)"
-          echo "NWLink: $(command -v nwlink)"
-          arm-none-eabi-gcc --version
-          make -C games/dside1
-          make -C games/dside1 check
+          make -C games/dside1 NWLINK=nwlink
+          make -C games/dside1 check NWLINK=nwlink
+          test -s games/dside1/output/DSide1.nwa
+          ls -lh games/dside1/output/DSide1.nwa
+
       - name: Upload NWA
         uses: actions/upload-artifact@v4
         with:
