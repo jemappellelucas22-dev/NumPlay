@@ -194,16 +194,34 @@ static void draw_room(void){
  }
  /* exit beacon */
  fillc(screen_x(RW-24),150,3,72,0x58E5D4);circlec(screen_x(RW-22),148,5,0xD4FFF7,240);
- /* Detailed tiny pixel-art runner: hair, face, coat, scarf and animated feet. */
- int x=screen_x(px),y=py;
- if(dash){roundc(x-(int)(vx*1.6f),y-(int)(vy*1.6f)+2,14,10,5,0x70E9DF,95);}
- fillc(x+2,y+1,7,3,0x6D344E);fillc(x+1,y+3,4,3,0x8F405C);
- roundc(x+2,y+3,8,7,3,0xE9B99A,255);fillc(x+8,y+5,2,2,0x18243B);
- roundc(x,y+8,10,6,3,0xD94E6B,255);fillc(x+1,y+9,7,2,0xF17C91);
- fillc(x-2,y+9,5,2,0x70E9DF);fillc(x-4,y+10,4,1,0xB7FFF5);
- fillc(x+1,y+13,3,2,0x26334D);fillc(x+7,y+13,3,2,0x26334D);
- if((frames/6)&1){fillc(x+1,y+14,3,1,0xE7C8B5);fillc(x+7,y+14,3,1,0xE7C8B5);}
- if(dash){for(int i=0;i<4;i++)fillc(x-5-i*3,y+5+i%2*2,3,2,0x70E9DF);}
+ /* 16x16 hand-drawn pixel sprite, with a second running-leg frame. */
+ static const char *hero[16]={
+  "......HHHH......",".....HHHHHH.....","....HHHHHHH.....",
+  "....HSSSSSH.....","....HSSSSEH.....",".....SSSSSS.....",
+  "......SSS.......",".....CCCCCC.....","....CCCCCCCC....",
+  "...PPCCCCCCC....","..PPPCCCCCC.....","...PPCCCC.......",
+  "....CC..CC......","....DD..DD......","...DDD..DDD.....",
+  "................"
+ };
+ static const char *run[16]={
+  "......HHHH......",".....HHHHHH.....","....HHHHHHH.....",
+  "....HSSSSSH.....","....HSSSSEH.....",".....SSSSSS.....",
+  "......SSS.......",".....CCCCCC.....","....CCCCCCCC....",
+  "...PPCCCCCCC....","..PPPCCCCCC.....","...PPCCCC.......",
+  "...CC...CC......","..DDD...DDD.....","..DD.....DD.....",
+  "................"
+ };
+ const char **spr=((frames/7)&1)&&ground?run:hero;
+ int x=screen_x(px)-3,y=py-1;
+ if(dash){roundc(x-(int)(vx*1.5f),y-(int)(vy*1.5f)+3,17,12,6,0x70E9DF,80);}
+ for(int yy=0;yy<16;yy++)for(int xx=0;xx<16;xx++){
+  char q=spr[yy][xx];uint32_t col=0;
+  if(q=='H')col=0x542A43;else if(q=='S')col=0xE9B99A;
+  else if(q=='E')col=0x18243B;else if(q=='C')col=0xD94E6B;
+  else if(q=='P')col=0x70E9DF;else if(q=='D')col=0x26334D;
+  if(col)fillc(x+xx,y+yy,1,1,col);
+ }
+ if(dash){for(int i=0;i<5;i++)fillc(x-3-i*3,y+6+(i&1)*2,3,2,0x70E9DF);}
  /* particles */
  for(int i=0;i<MAX_PART;i++)if(particles[i].life){Particle p=particles[i];int a=p.life*16;
   circlec(screen_x(p.x),p.y,p.kind?2:1,p.kind?0x70E9DF:0xF4B8C3,a);
