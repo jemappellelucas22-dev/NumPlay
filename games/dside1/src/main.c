@@ -223,14 +223,32 @@ static void draw_room(void){
  gfx_vgrad(0,0,W,H,0x0B142B,0x263552);draw_city();
  /* moon */
  circlec(263-(cam/8)%30,52,15,0xE3D9C2,180);circlec(269-(cam/8)%30,46,15,0x17233D,220);
- /* background building silhouettes */
- fillc(0,210,W,30,0x111B31);
- for(int i=0;i<12;i++){int x=(i*31-(cam/2)%31);fillc(x,174+(i*19%30),18,40,0x26334D);}
- /* platforms */
+ /* Layered ruined skyline, lit windows and foreground silhouettes. */
+ fillc(0,210,W,30,0x101A30);
+ for(int i=0;i<12;i++){
+  int x=(i*31-(cam/2)%31),top=158+(i*19%34);
+  fillc(x,top,18,58,0x202D47);fillc(x+2,top-3,14,3,0x3A4A65);
+  for(int wy=top+9;wy<207;wy+=12)for(int wx=x+4;wx<x+16;wx+=7)
+   if(((i+wy+wx)/5)%3)fillc(wx,wy,2,3,0x71849A);
+ }
+ /* distant stars */
+ for(int i=0;i<22;i++){int x=(i*47-(cam/5)%47+W)%W;int y=31+(i*29%116);fillc(x,y,1,1,(i%4)?0x8195B1:0xD7D8CB);}
+ /* Hand-shaded stone platforms: bright chipped rim, dark sides and pixel seams. */
  for(int i=0;i<12;i++){Box b=platforms[room][i];if(b.w<2)continue;int x=screen_x(b.x);
-  fillc(x,b.y,b.w,b.h,0x56647B);fillc(x,b.y,b.w,3,0xA5B4C8);
-  fillc(x,b.y+b.h-3,b.w,3,0x35445D);
-  for(int k=8;k<b.w-5;k+=19){fillc(x+k,b.y+5,2,2,0x8190A5);}
+  fillc(x,b.y,b.w,b.h,0x35435B);
+  fillc(x,b.y,b.w,2,0xB9C5D4);
+  fillc(x+1,b.y+2,b.w-2,2,0x8295AA);
+  if(b.h>12){
+   fillc(x+2,b.y+5,b.w-4,2,0x4B5D75);
+   for(int k=7;k<b.w-4;k+=13){
+    fillc(x+k,b.y+9,1,4,0x26344C);
+    if(k+5<b.w)fillc(x+k+4,b.y+6,2,2,0x657991);
+   }
+   fillc(x,b.y+b.h-3,b.w,3,0x202C43);
+  }else{
+   for(int k=12;k<b.w-4;k+=18){fillc(x+k,b.y+4,1,4,0x26344C);fillc(x+k+2,b.y+5,4,1,0x71849B);}
+  }
+  fillc(x+3,b.y+1,5,1,0xE2EAF1);
  }
  for(int i=0;i<5;i++)draw_spikes(spikes[room][i]);
  /* crystal dash refills */
