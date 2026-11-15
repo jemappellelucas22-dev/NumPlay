@@ -1,0 +1,48 @@
+name: Build D-Side 1
+
+on:
+  push:
+    branches: [d-sides-prototype]
+    paths:
+      - "games/dside1/**"
+      - "games/common/**"
+      - "launcher/src/**"
+      - "sdk/template/src/icon.png"
+      - ".github/actions/setup/action.yml"
+      - ".github/workflows/dside1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      # Reuse the exact toolchain setup already proven by NumPlay's main build.
+      # This avoids a second, separate installer and a brittle ~/.numplay path check.
+      - uses: ./.github/actions/setup
+
+      - name: Verify toolchain
+        shell: bash
+        run: |
+          command -v arm-none-eabi-gcc
+          command -v arm-none-eabi-strip
+          command -v nwlink
+          arm-none-eabi-gcc --version
+
+      - name: Build D-Side 1
+        shell: bash
+        run: |
+          make -C games/dside1 NWLINK=nwlink
+          make -C games/dside1 check NWLINK=nwlink
+          test -s games/dside1/output/DSide1.nwa
+          ls -lh games/dside1/output/DSide1.nwa
+
+      - name: Upload NWA
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSide1-NWA
+          path: games/dside1/output/DSide1.nwa
+          if-no-files-found: error
