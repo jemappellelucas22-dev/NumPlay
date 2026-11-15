@@ -85,7 +85,7 @@ static void particle(int x,int y,int kind){
 }
 static void burst(int x,int y,int n,int kind){for(int i=0;i<n;i++)particle(x,y,kind);}
 static void reset_room(void){
- px=room==0?22:24;py=194;vx=vy=0;dash=0;dash_used=0;ground=wall=grab=coyote=jump_buffer=jump_hold=0;shake=0;
+ px=room==0?22:24;py=194;vx=vy=0;rem_x=rem_y=0;dash_target_x=dash_target_y=0;dash_accel_x=dash_accel_y=0;dash=0;dash_used=0;ground=wall=grab=coyote=jump_buffer=jump_hold=0;shake=0;
 }
 static void start_game(void){room=0;deaths=0;frames=0;best_room=0;for(int r=0;r<ROOMS;r++)for(int o=0;o<2;o++)orb_taken[r][o]=0;reset_room();state=PLAY;}
 static void die(void){deaths++;death_flash=9;shake=7;burst(px+PW/2,py+PH/2,12,0);reset_room();}
@@ -128,55 +128,96 @@ static bool move_y(int amount){
  }
  return false;
 }
+static float dash_target_x=0,dash_target_y=0,dash_accel_x=0,dash_accel_y=0;
+static float rem_x=0,rem_y=0;
+static float approach(float value,float target,float amount){
+ if(value<target){value+=amount;if(value>target)value=target;}
+ else if(value>target){value-=amount;if(value<target)value=target;}
+ return value;
+}
+static void move_player_x(void){
+ rem_x+=vx;
+ int dx=(int)rem_x;
+ rem_x-=dx;
+ if(dx&&move_x(dx))rem_x=0;
+}
+static void move_player_y(void){
+ rem_y+=vy;
+ int dy=(int)rem_y;
+ rem_y-=dy;
+ if(dy&&move_y(dy))rem_y=0;
+}
 static void update_player(uint64_t keys,uint64_t pressed){
  int dir=(!!(keys&KEY(eadk_key_right)))-(!!(keys&KEY(eadk_key_left)));
  int aimx=dir,aimy=(!!(keys&KEY(eadk_key_down)))-(!!(keys&KEY(eadk_key_up)));
  bool grabbing=(keys&KEY(eadk_key_toolbox))!=0;
- bool was_ground=grounded_now();
- ground=was_ground;
- if(pressed&KEY(eadk_key_ok))jump_buffer=9;else if(jump_buffer)jump_buffer--;
+ bool jump_pressed=(pressed&KEY(eadk_key_ok))!=0;
+ bool dash_pressed=(pressed&KEY(eadk_key_back))!=0;
+ bool on_ground=grounded_now();
+ ground=on_ground;
+ if(jump_pressed)jump_buffer=4;else if(jump_buffer>0)jump_buffer--;
  if(dir)facing=dir;
- if(ground)coyote=8;else if(coyote)coyote--;
- wall=ground?0:touching_wall();
- /* Wall grab is held, not toggled. It stops the fall and locks the player to the wall. */
- grab=grabbing&&wall&&!ground&&!dash;
- if(grab){vy=0;vx=0;}
- if(pressed&KEY(eadk_key_back)&&!dash_used&&!grab){
-  if(!aimx&&!aimy)aimx=facing;
-  float len=(aimx&&aimy)?1.41421356f:1.0f;
-  vx=aimx*6.4f/len;vy=aimy*6.4f/len;
-  dash=DASH_TIME;dash_used=1;jump_buffer=0;
-  shake=2;burst(px+PW/2,py+PH/2,7,1);
- }
- if(dash){
-  bool hitx=move_x(iround(vx));
-  bool hity=move_y(iround(vy));
-  if(hitx||hity){dash=0;vx*=0.35f;vy*=0.35f;}
-  else dash--;
-  if(dash==0){vx*=0.45f;vy*=0.45f;}
- }else if(!grab){
-  float target=dir*2.35f;
-  float accel=ground?0.48f:0.24f;
-  vx+=(target-vx)*accel;
-  if(!dir&&ground)vx*=0.70f;
-  vy+=0.40f;if(vy>6.0f)vy=6.0f;
-  /* Variable-height jump: releasing jump early cuts upward speed once. */
-  if(!(keys&KEY(eadk_key_ok))&&vy<-3.0f)vy=-3.0f;
-  if(jump_buffer&&(ground||coyote)){
-   vy=-8.1f;jump_buffer=0;coyote=0;ground=0;
-   burst(px+PW/2,py+PH,5,0);
-  }else if(jump_buffer&&wall){
-   vy=-7.8f;vx=-wall*5.3f;jump_buffer=0;facing=-wall;grab=0;
-   burst(px+PW/2,py+PH/2,6,0);
-  }
-  move_x(iround(vx));
-  ground=0;
-  move_y(iround(vy));
+ if(on_ground)coyote=6;else if(coyote>0)coyote--;
+ wall=on_ground?0:touching_wall();
+
+ /* Celeste Classic's published movement model, rescaled for this game's
+    larger rooms and 60 Hz update: acceleration, grace frames, jump buffer,
+    wall slide/jump and the short accelerating dash. */
+ grab=grabbing&&wall&&!on_ground&&!dash;
+ if(dash>0){
+  dash--;
+  vx=approach(vx,dash_target_x,dash_accel_x);
+  vy=approach(vy,dash_target_y,dash_accel_y);
+  bool hit_x=move_x((int)(vx+(vx>=0?0.5f:-0.5f)));
+  bool hit_y=move_y((int)(vy+(vy>=0?0.5f:-0.5f)));
+  if(hit_x||hit_y){dash=0;rem_x=rem_y=0;}
  }else{
-  /* Gentle wall slide, with a hard cap so grabbing is predictable. */
-  if(vy>0.65f)vy=0.65f;
-  if(dir==-wall){grab=0;vx=dir*1.2f;vy+=0.40f;move_x(iround(vx));ground=0;move_y(iround(vy));}
+  const float maxrun=1.75f;
+  float accel=on_ground?0.525f:0.35f;
+  const float deccel=0.13125f;
+  if(fabsf(vx)>maxrun)vx=approach(vx,(vx<0?-maxrun:maxrun),deccel);
+  else vx=approach(vx,dir*maxrun,accel);
+  if(vx< -0.05f)facing=-1;else if(vx>0.05f)facing=1;
+
+  float maxfall=3.5f;
+  float gravity=0.18375f;
+  if(fabsf(vy)<=0.2625f)gravity*=0.5f;
+  if(wall&&dir==wall&&!on_ground)maxfall=0.70f;
+  if(grab){vx=0;if(vy>0.35f)vy=0.35f;}
+  if(!on_ground)vy=approach(vy,maxfall,gravity);
+  else if(vy>0)vy=0;
+
+  if(jump_buffer>0){
+   if(coyote>0){
+    jump_buffer=0;coyote=0;vy=-3.5f;ground=0;
+    burst(px+PW/2,py+PH,4,0);
+   }else if(wall){
+    jump_buffer=0;vy=-3.5f;vx=-wall*3.5f;facing=-wall;grab=0;
+    rem_x=0;burst(px+PW/2,py+PH/2,5,0);
+   }
+  }
+
+  move_player_x();
+  ground=0;
+  move_player_y();
+
+  if(dash_pressed&&!dash_used&&!grab){
+   if(!aimx&&!aimy)aimx=facing;
+   const float full=8.75f,half=6.187184f;
+   if(aimx&&aimy){vx=aimx*half;vy=aimy*half;}
+   else if(aimx){vx=aimx*full;vy=0;}
+   else {vx=0;vy=aimy*full;}
+   dash_used=1;dash=8;jump_buffer=0;rem_x=rem_y=0;
+   dash_target_x=(vx>0?3.5f:(vx<0?-3.5f:0));
+   dash_target_y=(vy>0?3.5f:(vy<0?-3.5f:0));
+   dash_accel_x=1.3125f;dash_accel_y=1.3125f;
+   if(vy<0)dash_target_y*=0.75f;
+   if(vy!=0)dash_accel_x*=0.70710678f;
+   if(vx!=0)dash_accel_y*=0.70710678f;
+   shake=2;burst(px+PW/2,py+PH/2,8,1);
+  }
  }
+
  ground=grounded_now();
  if(ground){dash_used=0;if(vy>0)vy=0;}
  wall=ground?0:touching_wall();
