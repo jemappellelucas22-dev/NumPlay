@@ -163,7 +163,7 @@ static void update(uint64_t keys,uint64_t pressed){
  if(shake)shake--;
  if(death_flash)death_flash--;
 }
-static int screen_x(int x){return x-cam;}
+static int screen_x(int x){return x-(cam-room*RW);}
 static void draw_spikes(Box b){
  int x0=screen_x(b.x),n=b.w/8;
  for(int i=0;i<n;i++){int x=x0+i*8;fillc(x+3,b.y+1,2,2,0xF6A2A8);fillc(x+2,b.y+3,4,2,0xF05B68);fillc(x+1,b.y+5,6,3,0xD83E5C);}
