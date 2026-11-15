@@ -5,6 +5,7 @@
 #include <eadk.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <math.h>
 #include "../../common/epsilon_app.h"
 #include "../../../launcher/src/gfx.h"
 #include "../../common/np_text.h"
@@ -68,6 +69,9 @@ static Particle particles[MAX_PART];
 static int room=0, deaths=0, frames=0, state=0, dash=0, dash_used=0;
 static int px=22,py=194,cam=0,ground=0,wall=0,grab=0,coyote=0,jump_buffer=0,facing=1,jump_hold=0;
 static float vx=0,vy=0;
+static float dash_target_x=0,dash_target_y=0,dash_accel_x=0,dash_accel_y=0;
+static float rem_x=0,rem_y=0;
+
 static int shake=0,orb_taken[ROOMS][2],trail=0,death_flash=0;
 static uint64_t previous=0;
 static uint32_t rng=0xA5317u;
@@ -128,8 +132,6 @@ static bool move_y(int amount){
  }
  return false;
 }
-static float dash_target_x=0,dash_target_y=0,dash_accel_x=0,dash_accel_y=0;
-static float rem_x=0,rem_y=0;
 static float approach(float value,float target,float amount){
  if(value<target){value+=amount;if(value>target)value=target;}
  else if(value>target){value-=amount;if(value<target)value=target;}
@@ -219,7 +221,7 @@ static void update_player(uint64_t keys,uint64_t pressed){
  }
 
  ground=grounded_now();
- if(ground){dash_used=0;if(vy>0)vy=0;}
+ if(ground){if(!on_ground)dash_used=0;if(vy>0)vy=0;}
  wall=ground?0:touching_wall();
  px=clampi(px,0,RW-PW);
  if(py>H+20||py<-30){die();return;}
